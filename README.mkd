@@ -1,0 +1,9 @@
+# i3-exec-wait
+
+I did two very basic implementations of i3-exec-wait, which are intended to work with [this](http://bugs.i3wm.org/report/ticket/854). There is a Ruby version, which requires BinData and JSON (both available as gems), and a C version which should compile on your Linux/BSD system. The Ruby version is ugly, the C version is probably somehow subtly broken and insecure (critic/comments/patches/pulls are welcome).
+
+There are also three shell scripts for testing. Both version pass this basic test on my patched i3.
+
+If you'd like to contact me drop me a line at p.staszewski@gmail.com, or perhaps visit my [website](http://www.drbig.one.pl).
+
+Enjoy.
