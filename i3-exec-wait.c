@@ -1,5 +1,9 @@
 /*
  * i3-exec-wait
+ * © 2013 Piotr S. Staszewski
+ * For licensing purposes assume current i3 license.
+ *
+ * http://www.drbig.one.pl
  *
  */
 
@@ -19,8 +23,11 @@
  *
  */
 void help() {
-  fprintf(stderr, "Supply a command you wish to execute (and its arguments if needed).\nIf you need to wait for more than one window use -n <INT> as first two arguments.\nE.g. i3-exec-wait xterm -title \"Rc Shell\" -e rc\n     i3-exec-wait -n 4 gimp\n");
-  exit(2);
+  fprintf(stderr, "Supply a command you wish to execute (and its arguments if needed).\n");
+  fprintf(stderr, "If you need to wait for more than one window use -n <INT> as first two arguments.\n");
+  fprintf(stderr, "E.g. i3-exec-wait xterm -title \"Rc Shell\" -e rc\n");
+  fprintf(stderr, "     i3-exec-wait -n 4 gimp\n");
+  exit(1);
 }
 
 /*
@@ -28,11 +35,13 @@ void help() {
  *
  */
 void die(const char *msg) {
-  if (errno)
+  if (errno) {
     perror(msg);
-  else
+    exit(2);
+  } else {
     fprintf(stderr, "ERROR: %s!\n", msg);
-  exit(2);
+    exit(1);
+  }
 }
 
 /*
@@ -118,8 +127,11 @@ int main(int argc, char *argv[]) {
 
   payload = get_msg(sock);
 
-  if (payload == NULL || strlen(payload) != 16)
+  if (payload == NULL || strlen(payload) != 16) {
+    if (payload != NULL)
+      free(payload);
     die("Could not subscribe for the window event");
+  }
 
   //printf("payload: '%s'\n", payload);
   free(payload);
