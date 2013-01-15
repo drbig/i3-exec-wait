@@ -3,6 +3,7 @@
  *
  */
 
+#include <errno.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -23,34 +24,16 @@ void help() {
 }
 
 /*
- * Print an error and bail.
+ * Print an error and exit.
  *
  */
-void bail(char *msg) {
-  fprintf(stderr, msg);
+void die(const char *msg) {
+  if (errno)
+    perror(msg);
+  else
+    fprintf(stderr, "ERROR: %s!\n", msg);
   exit(2);
 }
-
-/*
- * Print the system error and die.
- *
- */
-void die(char *msg) {
-  perror(msg);
-  exit(2);
-}
-
-/*
- * The ad-hoc struct for i3-ipc message header.
- * Packing is very important here.
- *
- */
-#pragma pack(1)
-typedef struct {
-  uint8_t magic[6];
-  uint32_t len;
-  uint32_t type;
-} ipc_header;
 
 /*
  * Receive message from i3-ipc.
@@ -58,7 +41,13 @@ typedef struct {
  *
  */
 char *get_msg(int sock) {
-  ipc_header head;
+  // The i3-ipc message header, packing is very important.
+  #pragma pack(1)
+  struct ipc_header {
+    uint8_t magic[6];
+    uint32_t len;
+    uint32_t type;
+  } head;
   char *payload;
   int len;
 
@@ -66,7 +55,8 @@ char *get_msg(int sock) {
     die("recv");
 
   if (head.len > 0) {
-    payload = malloc(head.len);
+    if ((payload = calloc(head.len + 1, sizeof(uint8_t))) == NULL)
+      die("calloc");
     if (recv(sock, payload, head.len, MSG_WAITALL) < 0)
       die("recv");
     return payload;
@@ -75,11 +65,10 @@ char *get_msg(int sock) {
 }
 
 int main(int argc, char *argv[]) {
-  int nwin = 1;     // for how many windows we wait.
-  int ncmd = 1;     // where do command argv starts.
-  char path[1024];  // here will be socket path.
-  struct sockaddr_un ipcaddr;  // i3-ipc addr.
-  int sock;         // i3-ipc socket.
+  int nwin = 1;                 // for how many windows we wait.
+  int ncmd = 1;                 // where do command argv starts.
+  struct sockaddr_un ipcaddr;   // i3-ipc addr.
+  int sock;                     // i3-ipc socket.
 
   /* Parse arguments and setup nwin and ncmd. */
   if (argc < 2)
@@ -89,10 +78,10 @@ int main(int argc, char *argv[]) {
       help();
     else if (!strcmp(argv[1], "-n")) {
       if (argc < 4)
-        bail("You have to specify number of windows and a command!\n");
+        die("You have to specify number of windows and a command");
       nwin = atoi(argv[2]);
       if (nwin < 1)
-        bail("Number of windows has to be > 0!\n");
+        die("Number of windows has to be > 0");
       ncmd = 3;
     }
   }
@@ -103,11 +92,13 @@ int main(int argc, char *argv[]) {
   if (!(fp = popen("/bin/sh -c \"i3 --get-socketpath\"", "r")))
     die("popen");
 
-  fgets(path, sizeof(path), fp);
-  if (strlen(path) == 0)
-    bail("Could not get i3 socket path!\n");
+  fgets(ipcaddr.sun_path, sizeof(ipcaddr.sun_path), fp);
+  pclose(fp);
 
-  path[strlen(path) - 1] = 0;
+  if (strlen(ipcaddr.sun_path) == 0)
+    die("Could not get i3 socket path");
+
+  ipcaddr.sun_path[strlen(ipcaddr.sun_path) - 1] = 0;
 
   /* Subscribe to "window" events. */
   int len;
@@ -117,7 +108,6 @@ int main(int argc, char *argv[]) {
     die("socket");
 
   ipcaddr.sun_family = AF_UNIX;
-  strcpy(ipcaddr.sun_path, path);
   len = strlen(ipcaddr.sun_path) + sizeof(ipcaddr.sun_family);
   if (connect(sock, (struct sockaddr *)&ipcaddr, len) == -1)
     die("connect");
@@ -128,8 +118,8 @@ int main(int argc, char *argv[]) {
 
   payload = get_msg(sock);
 
-  if (strlen(payload) != 16)
-    bail("Could not subscribe for the window event!\n");
+  if (payload == NULL || strlen(payload) != 16)
+    die("Could not subscribe for the window event");
 
   //printf("payload: '%s'\n", payload);
   free(payload);
