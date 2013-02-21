@@ -7,3 +7,10 @@ There are also three shell scripts for testing. Both version pass this basic tes
 If you'd like to contact me drop me a line at p.staszewski@gmail.com, or perhaps visit my [website](http://www.drbig.one.pl).
 
 Enjoy.
+
+*UPDATES*
+
+The patch for generating new window events has been merged into the 'next' branch of i3 on 18.02.2013.
+
+There is a problem with some apps, they seem to be 'stealing' focus which makes 'focus' command (via i3-msg) useless if executed right after an application that takes longer to draw/setup/whatever it is doing (examples in my case: chromium, gnumeric). Commits after _09c3c3c_ are rather messy, as we are trying various ways to find the solution to this problem.
+
