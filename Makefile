@@ -1,4 +1,4 @@
-CFLAGS=-Wall -g
+CFLAGS=-Wall -g -lyajl
 CC=gcc
 
 all: i3-exec-wait
@@ -7,4 +7,4 @@ debug:
 	$(CC) $(CFLAGS) -DDEBUG i3-exec-wait.c -o i3-exec-wait-dbg
 
 clean:
-	rm -f i3-exec-wait
+	rm -f i3-exec-wait i3-exec-wait-dbg

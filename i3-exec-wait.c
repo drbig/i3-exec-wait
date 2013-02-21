@@ -16,6 +16,8 @@
 #include <sys/un.h>
 #include <unistd.h>
 
+#include "yajl/yajl_tree.h"
+
 #define SUBSCRIBE "i3-ipc\n\x00\x00\x00\x02\x00\x00\x00[\"window\"]"
 
 #ifdef DEBUG
@@ -80,11 +82,41 @@ char *get_msg(int sock) {
     return NULL;
 }
 
+/*
+ * Get the window ID from the JSON response.
+ * Returns a signed long integer.
+ *
+ */
+long get_window_id(char *json) {
+  const char *path[] = { "container", "window", (const char *) 0 };
+  yajl_val node;
+  char errbuf[1024];
+  long window_id;
+
+  if ((node = yajl_tree_parse((const char *) json, errbuf, sizeof(errbuf))) == NULL) {
+    dbg(if (strlen(errbuf)) fprintf(stderr, "%s", errbuf));
+    die("JSON response parse error");
+  }
+
+  yajl_val window = yajl_tree_get(node, path, yajl_t_number);
+  if (window)
+    // YAJL handles numbers as 64bit (long long), but we know
+    // an X window ID will fit in long.
+    window_id = (long) YAJL_GET_INTEGER(window);
+  else
+    die("Window node not found in the JSON response");
+  
+  yajl_tree_free(node);
+
+  return window_id;
+}
+
 int main(int argc, char *argv[]) {
   int nwin = 1;                 // for how many windows we wait.
   int ncmd = 1;                 // where do command argv starts.
   struct sockaddr_un ipcaddr;   // i3-ipc addr.
   int sock;                     // i3-ipc socket.
+  long window_id;               // reparented window id.
 
   /* Parse arguments and setup nwin and ncmd. */
   if (argc < 2)
@@ -140,7 +172,7 @@ int main(int argc, char *argv[]) {
     die("Could not subscribe for the window event");
   }
 
-  dbg(printf("payload: '%s'\n", payload))
+  dbg(printf("payload: '%s'\n", payload));
   free(payload);
 
   /* Spawn the command. */
@@ -155,7 +187,9 @@ int main(int argc, char *argv[]) {
   /* Wait for nwin windows to get reparented. */
   while (nwin > 0) {
     payload = get_msg(sock);
-    dbg(printf("payload: '%s'\n", payload))
+    dbg(printf("payload: '%s'\n", payload));
+    window_id = get_window_id(payload);
+    dbg(printf("window id: %ld\n", window_id));
     free(payload);
     nwin--;
   }
