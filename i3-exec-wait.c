@@ -18,6 +18,12 @@
 
 #define SUBSCRIBE "i3-ipc\n\x00\x00\x00\x02\x00\x00\x00[\"window\"]"
 
+#ifdef DEBUG
+  #define dbg(code) code;
+#else
+  #define dbg(code)
+#endif
+
 /*
  * Print help.
  *
@@ -64,6 +70,7 @@ char *get_msg(int sock) {
     die("recv");
 
   if (head.len > 0) {
+    // Allocate +1, get a free \0.
     if ((payload = calloc(head.len + 1, sizeof(uint8_t))) == NULL)
       die("calloc");
     if (recv(sock, payload, head.len, MSG_WAITALL) < 0)
@@ -133,7 +140,7 @@ int main(int argc, char *argv[]) {
     die("Could not subscribe for the window event");
   }
 
-  //printf("payload: '%s'\n", payload);
+  dbg(printf("payload: '%s'\n", payload))
   free(payload);
 
   /* Spawn the command. */
@@ -148,7 +155,7 @@ int main(int argc, char *argv[]) {
   /* Wait for nwin windows to get reparented. */
   while (nwin > 0) {
     payload = get_msg(sock);
-    //printf("payload: '%s'\n", payload);
+    dbg(printf("payload: '%s'\n", payload))
     free(payload);
     nwin--;
   }
